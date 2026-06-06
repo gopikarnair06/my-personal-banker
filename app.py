@@ -40,12 +40,15 @@ col_form, col_table = st.columns([1, 1.5])
 
 with col_form:
     st.subheader("Add Transaction")
+    
+    # Placed OUTSIDE the form block so it instantly triggers layout state changes
+    typ = st.radio("Type", ["Debit", "Credit"], horizontal=True)
+    
     with st.form("transaction_entry_form", clear_on_submit=True):
         input_date = st.date_input("Date", datetime.now())
         acc = st.selectbox("Account Source", ["Online Account", "Liquid Wallet"])
-        typ = st.radio("Type", ["Debit", "Credit"], horizontal=True)
         
-        # Fixed: Cleaner dynamic options for Credit vs Debit
+        # Swaps categories instantly based on the radio button choice above
         if typ == "Credit":
             purp = st.selectbox("Category", ["Allowance/Pocket Money", "Gift", "Other Credit"])
             details = st.text_input("Description", placeholder="e.g. Received money details")
@@ -61,14 +64,12 @@ with col_form:
         
         if st.form_submit_button("Save to Ledger", use_container_width=True):
             if amt > 0:
-                # Math calculation that alters the balance instantly
                 mult = -1 if typ == "Debit" else 1
                 if acc == "Liquid Wallet": 
                     st.session_state.liquid_cash += (amt * mult)
                 else: 
                     st.session_state.online_cash += (amt * mult)
                 
-                # Append to active session history
                 st.session_state.history.append({
                     "Date": input_date.strftime("%Y-%m-%d"),
                     "Year": input_date.strftime("%Y"),
