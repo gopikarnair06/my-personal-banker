@@ -14,14 +14,14 @@ if 'history' not in st.session_state:
         {"Date": "2026-06-01", "Year": "2026", "Month": "2026-06", "Amount": 529.0, "Type": "Debit", "Purpose": "Utensils/Bills", "Details": "Electricity Bill", "Account": "Online Account"},
         {"Date": "2026-06-02", "Year": "2026", "Month": "2026-06", "Amount": 1792.0, "Type": "Debit", "Purpose": "Utensils/Bills", "Details": "Water Bill", "Account": "Online Account"},
         {"Date": "2026-06-03", "Year": "2026", "Month": "2026-06", "Amount": 300.0, "Type": "Debit", "Purpose": "Vegetables", "Details": "Kovaka, Beans, Carrot", "Account": "Liquid Wallet"},
-        {"Date": "2026-06-04", "Year": "2026", "Month": "2026-06", "Amount": 1000.0, "Type": "Credit", "Purpose": "Income/Gift", "Details": "From Amma", "Account": "Liquid Wallet"},
+        {"Date": "2026-06-04", "Year": "2026", "Month": "2026-06", "Amount": 1000.0, "Type": "Credit", "Purpose": "Allowance/Pocket Money", "Details": "From Amma", "Account": "Liquid Wallet"},
         {"Date": "2026-06-05", "Year": "2026", "Month": "2026-06", "Amount": 450.0, "Type": "Debit", "Purpose": "Pantry", "Details": "Sugar, Tea Powder, Ghee", "Account": "Online Account"}
     ]
 
 # --- 2. LAYOUT CONFIGURATION ---
 st.set_page_config(page_title="Personal Finance Tracker", layout="wide")
 
-# --- HEADER & METRICS (Visibility Fix for Dark Mode) ---
+# --- HEADER & METRICS ---
 st.title("Personal Finance Tracker")
 st.caption(f"Welcome Gopika • {datetime.now().strftime('%A, %d %B %Y')}")
 
@@ -45,28 +45,30 @@ with col_form:
         acc = st.selectbox("Account Source", ["Online Account", "Liquid Wallet"])
         typ = st.radio("Type", ["Debit", "Credit"], horizontal=True)
         
-        # Category options and field labels change based on transaction type
+        # Fixed: Cleaner dynamic options for Credit vs Debit
         if typ == "Credit":
-            purp = st.selectbox("Category", ["Income/Gift", "Other Credit"])
-            details = st.text_input("Description", placeholder="e.g. Allowance from Amma")
+            purp = st.selectbox("Category", ["Allowance/Pocket Money", "Gift", "Other Credit"])
+            details = st.text_input("Description", placeholder="e.g. Received money details")
         else:
             purp = st.selectbox("Category", ["Vegetables", "Pantry", "Utensils/Bills"])
             
             if purp == "Utensils/Bills":
                 details = st.selectbox("Bill Type", ["Electricity Bill", "Water Bill", "Gas Bill", "Kitchen Utensils"])
-            elif purp == "Vegetables":
-                details = st.text_input("Description", placeholder="e.g. Tomato, Onion, Chili")
-            elif purp == "Pantry":
-                details = st.text_input("Description", placeholder="e.g. Rice, Coconut Oil, Tea")
+            else:
+                details = st.text_input("Description", placeholder="e.g. Item details or notes")
 
         amt = st.number_input("Amount (₹)", min_value=0.0, step=10.0)
         
         if st.form_submit_button("Save to Ledger", use_container_width=True):
             if amt > 0:
+                # Math calculation that alters the balance instantly
                 mult = -1 if typ == "Debit" else 1
-                if acc == "Liquid Wallet": st.session_state.liquid_cash += (amt * mult)
-                else: st.session_state.online_cash += (amt * mult)
+                if acc == "Liquid Wallet": 
+                    st.session_state.liquid_cash += (amt * mult)
+                else: 
+                    st.session_state.online_cash += (amt * mult)
                 
+                # Append to active session history
                 st.session_state.history.append({
                     "Date": input_date.strftime("%Y-%m-%d"),
                     "Year": input_date.strftime("%Y"),
