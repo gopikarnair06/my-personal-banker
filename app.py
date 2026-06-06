@@ -76,75 +76,67 @@ with col_form:
                 })
                 st.rerun()
 
-    if not df.empty:
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)
-        st.download_button(label="Export Ledger to CSV", data=csv_buffer.getvalue(), file_name="expenses.csv", mime="text/csv", use_container_width=True)
-
 with col_table:
-    st.subheader("Filters")
-    f_c1, f_c2 = st.columns(2)
-    with f_c1:
-        cat_filter = st.selectbox("Filter Category", ["All"] + list(df['Purpose'].unique()) if not df.empty else ["All"])
-    with f_c2:
-        month_filter = st.selectbox("Filter Month", ["All"] + sorted(list(df['Month'].unique()), reverse=True) if not df.empty else ["All"])
-    
-    filtered_df = df.copy()
-    if cat_filter != "All":
-        filtered_df = filtered_df[filtered_df['Purpose'] == cat_filter]
-    if month_filter != "All":
-        filtered_df = filtered_df[filtered_df['Month'] == month_filter]
-
     st.subheader("Transaction Ledger")
-    if not filtered_df.empty:
+    if not df.empty:
         st.dataframe(
-            filtered_df[["Date", "Type", "Purpose", "Details", "Amount", "Account"]].rename(
+            df[["Date", "Type", "Purpose", "Details", "Amount", "Account"]].rename(
                 columns={"Purpose": "Category", "Details": "Description"}
-            ), 
+            ).sort_values("Date", ascending=False), 
             use_container_width=True, 
             hide_index=True
         )
-    else:
-        st.info("No matching records found.")
 
 st.divider()
 
-# --- 4. BOTTOM ROW: ANALYTICS VISUALIZATIONS ---
-st.subheader("Analytics")
-col_chart1, col_chart2 = st.columns([1, 1.2])
+# --- 4. BOTTOM ROW: UPDATED ANALYTICS ---
+st.subheader("Analytics Dashboard")
+col_chart1, col_chart2 = st.columns([1, 1])
 
 with col_chart1:
-    st.markdown("### Expenses by Category")
+    st.markdown("### Spending by Category")
     if not df.empty:
         debits = df[df['Type'] == "Debit"]
         if not debits.empty:
             chart_data = debits.groupby("Purpose", as_index=False)["Amount"].sum()
-            pie = alt.Chart(chart_data).mark_arc(innerRadius=55).encode(
-                theta=alt.Theta(field="Amount", type="quantitative"),
-                color=alt.Color(field="Purpose", type="nominal", legend=alt.Legend(orient="right", padding=10)),
-                tooltip=["Purpose", "Amount"]
-            ).properties(height=280)
-            st.altair_chart(pie, use_container_width=True)
+            
+            # Horizontal Bar Chart with indicators inside
+            bars = alt.Chart(chart_data).mark_bar(color="#2563eb", cornerRadiusEnd=4).encode(
+                x=alt.X('Amount:Q', title="Total Spent (₹)"),
+                y=alt.Y('Purpose:N', title=None, sort='-x'),
+                tooltip=['Purpose', 'Amount']
+            ).properties(height=200)
+
+            text = bars.mark_text(
+                align='left',
+                baseline='middle',
+                dx=5,
+                color='white'
+            ).encode(
+                text='Amount:Q'
+            )
+            
+            st.altair_chart(bars + text, use_container_width=True)
         else:
-            st.caption("No debit history available.")
+            st.caption("No expenses to show.")
 
 with col_chart2:
-    st.markdown("### Spending Trend (Day vs Money)")
+    st.markdown("### Daily Spending (Money vs Day)")
     if not df.empty and not df[df['Type'] == 'Debit'].empty:
-        # Grouping strictly by date to see the flow of money
-        time_data = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
+        # Grouping by Date to show money spent per day
+        daily_spent = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
         
-        # Switched to a clean Line Chart with points
-        line_chart = alt.Chart(time_data).mark_line(
-            color="#2563eb", 
-            point=True, 
-            strokeWidth=3
+        # Clean line graph with points
+        line_chart = alt.Chart(daily_spent).mark_line(
+            color="#dc2626", 
+            strokeWidth=3,
+            point=alt.OverlayMarkDef(color="#dc2626", size=60)
         ).encode(
-            x=alt.X('Date:T', title="Date"),
-            y=alt.Y('Amount:Q', title="Amount Spent (₹)"),
+            x=alt.X('Date:T', title="Day"),
+            y=alt.Y('Amount:Q', title="Money Spent (₹)"),
             tooltip=['Date', 'Amount']
-        ).properties(height=280)
+        ).properties(height=200)
         
         st.altair_chart(line_chart, use_container_width=True)
     else:
-        st.caption("Insufficient data for trends.")
+        st.caption("Insufficient data for trend.")
