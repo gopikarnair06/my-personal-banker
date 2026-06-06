@@ -40,21 +40,17 @@ col_form, col_table = st.columns([1, 1.5])
 
 with col_form:
     st.subheader("Add Transaction")
-    
-    # Placed OUTSIDE the form block so it instantly triggers layout state changes
     typ = st.radio("Type", ["Debit", "Credit"], horizontal=True)
     
     with st.form("transaction_entry_form", clear_on_submit=True):
         input_date = st.date_input("Date", datetime.now())
         acc = st.selectbox("Account Source", ["Online Account", "Liquid Wallet"])
         
-        # Swaps categories instantly based on the radio button choice above
         if typ == "Credit":
             purp = st.selectbox("Category", ["Allowance/Pocket Money", "Gift", "Other Credit"])
             details = st.text_input("Description", placeholder="e.g. Received money details")
         else:
             purp = st.selectbox("Category", ["Vegetables", "Pantry", "Utensils/Bills"])
-            
             if purp == "Utensils/Bills":
                 details = st.selectbox("Bill Type", ["Electricity Bill", "Water Bill", "Gas Bill", "Kitchen Utensils"])
             else:
@@ -65,10 +61,8 @@ with col_form:
         if st.form_submit_button("Save to Ledger", use_container_width=True):
             if amt > 0:
                 mult = -1 if typ == "Debit" else 1
-                if acc == "Liquid Wallet": 
-                    st.session_state.liquid_cash += (amt * mult)
-                else: 
-                    st.session_state.online_cash += (amt * mult)
+                if acc == "Liquid Wallet": st.session_state.liquid_cash += (amt * mult)
+                else: st.session_state.online_cash += (amt * mult)
                 
                 st.session_state.history.append({
                     "Date": input_date.strftime("%Y-%m-%d"),
@@ -117,7 +111,7 @@ st.divider()
 
 # --- 4. BOTTOM ROW: ANALYTICS VISUALIZATIONS ---
 st.subheader("Analytics")
-col_chart1, col_chart2 = st.columns(2)
+col_chart1, col_chart2 = st.columns([1, 1.2])
 
 with col_chart1:
     st.markdown("### Expenses by Category")
@@ -125,24 +119,38 @@ with col_chart1:
         debits = df[df['Type'] == "Debit"]
         if not debits.empty:
             chart_data = debits.groupby("Purpose", as_index=False)["Amount"].sum()
-            pie = alt.Chart(chart_data).mark_arc(innerRadius=50).encode(
+            # Moved legend to 'right' and brought it closer
+            pie = alt.Chart(chart_data).mark_arc(innerRadius=55).encode(
                 theta=alt.Theta(field="Amount", type="quantitative"),
-                color=alt.Color(field="Purpose", type="nominal", title=None),
+                color=alt.Color(field="Purpose", type="nominal", legend=alt.Legend(orient="right", padding=10)),
                 tooltip=["Purpose", "Amount"]
-            ).properties(height=240)
+            ).properties(height=280)
             st.altair_chart(pie, use_container_width=True)
         else:
-            st.caption("No debit history available to generate categorical charts.")
+            st.caption("No debit history available.")
 
 with col_chart2:
     st.markdown("### Spending Trend")
     if not df.empty and not df[df['Type'] == 'Debit'].empty:
-        time_data = df[df['Type'] == 'Debit'].groupby("Month", as_index=False)["Amount"].sum()
-        line = alt.Chart(time_data).mark_line(point=True, color="#2563eb").encode(
-            x=alt.X('Month:N', title="Reporting Period"),
-            y=alt.Y('Amount:Q', title="Aggregate Expenses (₹)"),
-            tooltip=['Month', 'Amount']
-        ).properties(height=240)
-        st.altair_chart(line, use_container_width=True)
+        # Spending trend grouped by date for a better line
+        time_data = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
+        
+        # Area chart looks more modern than just a point
+        area = alt.Chart(time_data).mark_area(
+            line={'color':'#2563eb'},
+            color=alt.Gradient(
+                gradient='linear',
+                stops=[alt.GradientStop(color='#2563eb', offset=0),
+                       alt.GradientStop(color='rgba(37, 99, 235, 0.1)', offset=1)],
+                x1=1, x2=1, y1=1, y2=0
+            ),
+            interpolate='monotone' # Smooths the line
+        ).encode(
+            x=alt.X('Date:T', title="Timeline"),
+            y=alt.Y('Amount:Q', title="Expenses (₹)"),
+            tooltip=['Date', 'Amount']
+        ).properties(height=280)
+        
+        st.altair_chart(area, use_container_width=True)
     else:
-        st.caption("Insufficient historical data points to generate timelines.")
+        st.caption("Insufficient data for trends.")
