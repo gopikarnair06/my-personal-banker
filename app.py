@@ -119,7 +119,6 @@ with col_chart1:
         debits = df[df['Type'] == "Debit"]
         if not debits.empty:
             chart_data = debits.groupby("Purpose", as_index=False)["Amount"].sum()
-            # Moved legend to 'right' and brought it closer
             pie = alt.Chart(chart_data).mark_arc(innerRadius=55).encode(
                 theta=alt.Theta(field="Amount", type="quantitative"),
                 color=alt.Color(field="Purpose", type="nominal", legend=alt.Legend(orient="right", padding=10)),
@@ -130,27 +129,22 @@ with col_chart1:
             st.caption("No debit history available.")
 
 with col_chart2:
-    st.markdown("### Spending Trend")
+    st.markdown("### Spending Trend (Day vs Money)")
     if not df.empty and not df[df['Type'] == 'Debit'].empty:
-        # Spending trend grouped by date for a better line
+        # Grouping strictly by date to see the flow of money
         time_data = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
         
-        # Area chart looks more modern than just a point
-        area = alt.Chart(time_data).mark_area(
-            line={'color':'#2563eb'},
-            color=alt.Gradient(
-                gradient='linear',
-                stops=[alt.GradientStop(color='#2563eb', offset=0),
-                       alt.GradientStop(color='rgba(37, 99, 235, 0.1)', offset=1)],
-                x1=1, x2=1, y1=1, y2=0
-            ),
-            interpolate='monotone' # Smooths the line
+        # Switched to a clean Line Chart with points
+        line_chart = alt.Chart(time_data).mark_line(
+            color="#2563eb", 
+            point=True, 
+            strokeWidth=3
         ).encode(
-            x=alt.X('Date:T', title="Timeline"),
-            y=alt.Y('Amount:Q', title="Expenses (₹)"),
+            x=alt.X('Date:T', title="Date"),
+            y=alt.Y('Amount:Q', title="Amount Spent (₹)"),
             tooltip=['Date', 'Amount']
         ).properties(height=280)
         
-        st.altair_chart(area, use_container_width=True)
+        st.altair_chart(line_chart, use_container_width=True)
     else:
         st.caption("Insufficient data for trends.")
