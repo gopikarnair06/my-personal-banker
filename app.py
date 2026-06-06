@@ -109,40 +109,48 @@ with col_table:
 
 st.divider()
 
-# --- 4. BOTTOM ROW: RE-ENGINEERED ANALYTICS ---
-st.subheader("Analytics Dashboard")
+# --- 4. BOTTOM ROW: ANALYTICS VISUALIZATIONS ---
+st.subheader("Analytics")
 col_chart1, col_chart2 = st.columns([1, 1.2])
 
 with col_chart1:
-    st.markdown("### Expense Breakdown")
+    st.markdown("### Expenses by Category")
     if not df.empty:
         debits = df[df['Type'] == "Debit"]
         if not debits.empty:
             chart_data = debits.groupby("Purpose", as_index=False)["Amount"].sum()
-            
-            # Stacked horizontal bar chart keeps label indicators clean and structured
-            bar_chart = alt.Chart(chart_data).mark_bar(size=40).encode(
-                x=alt.X('sum(Amount):Q', title="Total Spent (₹)"),
-                color=alt.Color('Purpose:N', title="Category", legend=alt.Legend(orient="bottom", direction="horizontal")),
-                tooltip=['Purpose', 'Amount']
-            ).properties(height=140)
-            
-            st.altair_chart(bar_chart, use_container_width=True)
+            # Moved legend to 'right' and brought it closer
+            pie = alt.Chart(chart_data).mark_arc(innerRadius=55).encode(
+                theta=alt.Theta(field="Amount", type="quantitative"),
+                color=alt.Color(field="Purpose", type="nominal", legend=alt.Legend(orient="right", padding=10)),
+                tooltip=["Purpose", "Amount"]
+            ).properties(height=280)
+            st.altair_chart(pie, use_container_width=True)
         else:
             st.caption("No debit history available.")
 
 with col_chart2:
-    st.markdown("### Daily Burn Rate (Spending Spike Tracker)")
+    st.markdown("### Spending Trend")
     if not df.empty and not df[df['Type'] == 'Debit'].empty:
-        # Changes trend to a helpful clear day-by-day spike tracker
-        daily_data = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
+        # Spending trend grouped by date for a better line
+        time_data = df[df['Type'] == 'Debit'].groupby("Date", as_index=False)["Amount"].sum()
         
-        burn_bar = alt.Chart(daily_data).mark_bar(color="#dc2626", cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
-            x=alt.X('Date:T', title="Day"),
-            y=alt.Y('Amount:Q', title="Amount Spent (₹)"),
+        # Area chart looks more modern than just a point
+        area = alt.Chart(time_data).mark_area(
+            line={'color':'#2563eb'},
+            color=alt.Gradient(
+                gradient='linear',
+                stops=[alt.GradientStop(color='#2563eb', offset=0),
+                       alt.GradientStop(color='rgba(37, 99, 235, 0.1)', offset=1)],
+                x1=1, x2=1, y1=1, y2=0
+            ),
+            interpolate='monotone' # Smooths the line
+        ).encode(
+            x=alt.X('Date:T', title="Timeline"),
+            y=alt.Y('Amount:Q', title="Expenses (₹)"),
             tooltip=['Date', 'Amount']
-        ).properties(height=180)
+        ).properties(height=280)
         
-        st.altair_chart(burn_bar, use_container_width=True)
+        st.altair_chart(area, use_container_width=True)
     else:
-        st.caption("Insufficient historical data points.")
+        st.caption("Insufficient data for trends.")
